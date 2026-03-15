@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍽️ Afsaana by Scooters — Luxury Restaurant Website
 
-## Getting Started
+A hyper-premium, cinematic restaurant website built with **Next.js 14**, **Framer Motion**, and **TypeScript**.
 
-First, run the development server:
+## ✨ Features
 
+- **Cinematic Preloader** with percentage counter
+- **Welcome Entry Screen** with animated reveal
+- **Hero** — full-screen video background with letter-by-letter animation
+- **About, Experience, Gallery** — parallax, lightbox, auto-play video
+- **Signature Dishes** — 3D tilt cards (desktop) / always-visible info (mobile)
+- **AI Chatbot** — keyword-smart assistant
+- **Reservations** — full booking form with:
+  - Time slot conflict detection (no double-bookings)
+  - Unique booking reference number (e.g. `AFS-20260315-8421`)
+  - On-screen luxury confirmation screen
+- **Admin Dashboard** (`/admin`) — password protected:
+  - All bookings with real-time data
+  - Cancel bookings with one click
+  - WhatsApp auto-opens with pre-filled cancellation message to customer
+- **ntfy.sh Push Notifications** — instant phone alerts on every new booking/cancellation
+- **Custom Magnetic Cursor**
+- **Golden Scroll Progress Bar**
+- **Mobile**: Full slide-out navigation drawer, sticky Call Now button
+- **Contact** — direct Google Maps link to exact restaurant location
+
+---
+
+## 🚀 Deploying to Vercel
+
+### Step 1 — Push to GitHub
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git add .
+git commit -m "Initial production ready build"
+git push origin main
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Step 2 — Import on Vercel
+1. Go to [vercel.com](https://vercel.com) → New Project
+2. Import your GitHub repository
+3. Framework Preset: **Next.js** (auto-detected)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Step 3 — Add Environment Variables on Vercel
+Go to Project Settings → Environment Variables and add:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Value |
+|---|---|
+| `GMAIL_USER` | your-gmail@gmail.com |
+| `GMAIL_APP_PASSWORD` | xxxx-xxxx-xxxx-xxxx |
+| `OWNER_EMAIL` | your-email@gmail.com |
+| `NTFY_TOPIC` | afsaana-bookings-private |
 
-## Learn More
+### Step 4 — Add Your Media Files
 
-To learn more about Next.js, take a look at the following resources:
+> ⚠️ Videos and images are excluded from Git (too large). You must upload them manually.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Place your files in:
+- `public/videos/` — Hero video, gallery videos, experience videos
+- `public/images/` — Gallery images, dish photos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Step 5 — Important: Booking Data on Vercel
 
-## Deploy on Vercel
+> ⚠️ **Vercel serverless functions cannot write to the filesystem.** The `bookings.json` data layer works perfectly for local development (`npm run dev`), but on Vercel you need a cloud database.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Recommended (free): Connect Vercel KV**
+1. In Vercel dashboard → Storage → Create KV Database → Connect to your project
+2. Vercel will auto-add `KV_REST_API_URL` and `KV_REST_API_TOKEN` env vars
+3. Contact developer to update the API routes to use `@vercel/kv`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🔐 Admin Access
+
+Visit `/admin` or **tap the copyright text 5 times quickly** in the footer.
+
+Default password: `afsaana2026` *(change in `/src/app/admin/page.tsx` line 7)*
+
+---
+
+## 📲 ntfy Notifications
+
+1. Install **ntfy** app (Android/iOS — free)
+2. Subscribe to topic: `afsaana-bookings-private`
+3. Get instant push notifications for every new booking and cancellation
+
+---
+
+## 🛠️ Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Animations**: Framer Motion
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Fonts**: Playfair Display + Inter (Google Fonts)
+- **Notifications**: ntfy.sh (free push), Nodemailer (email)
