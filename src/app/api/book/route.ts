@@ -1,52 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import fs from "fs";
-import path from "path";
 
-// We save bookings to a local JSON file in /data/bookings.json
-const DATA_DIR = path.join(process.cwd(), "data");
-const BOOKINGS_FILE = path.join(DATA_DIR, "bookings.json");
+const JSON_STORE_URL = "https://jsonblob.com/api/jsonBlob/019cf506-0ac6-7703-be54-af76c2b52926";
 
-// Global in-memory cache for Vercel
-declare global {
-  var _afsaanaBookingsCache: any[];
-}
-if (!global._afsaanaBookingsCache) {
-  global._afsaanaBookingsCache = [];
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-// Ensure the data directory and bookings file exist
-function ensureDataDir() {
+// Read all bookings from decentralized cloud safely
+async function readBookings(): Promise<any[]> {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(BOOKINGS_FILE)) {
-      fs.writeFileSync(BOOKINGS_FILE, JSON.stringify([], null, 2));
-    }
+    const res = await fetch(JSON_STORE_URL, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch (err) {
-    console.warn("Could not ensure data directory (likely Vercel environment):", err);
+    console.error("External DB fetch failed:", err);
+    return [];
   }
 }
 
-// Read all bookings safely
-function readBookings(): any[] {
-  ensureDataDir();
+// Write bookings to decentralized cloud
+async function writeBookings(bookings: any[]) {
   try {
-    if (!fs.existsSync(BOOKINGS_FILE)) return global._afsaanaBookingsCache || [];
-    
-    const data = JSON.parse(fs.readFileSync(BOOKINGS_FILE, "utf-8"));
-    if (Array.isArray(data) && data.length > 0) {
-      const merged = [...data];
-      global._afsaanaBookingsCache.forEach(cb => {
-        if (!merged.find(b => b.ref === cb.ref)) merged.push(cb);
-      });
-      global._afsaanaBookingsCache = merged;
-      return merged;
-    }
-    return global._afsaanaBookingsCache || [];
-  } catch {
-    return global._afsaanaBookingsCache || [];
+    await fetch(JSON_STORE_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(bookings)
+    });
+  } catch (err) {
+    console.warn("External DB write failed:", err);
   }
 }
 
@@ -222,10 +210,9 @@ export async function POST(req: NextRequest) {
     date = normalizeDate(date);
 
     // ============================================================
-    // TIME SLOT CONFLICT DETECTION
-    // Check if date + time is already booked by any confirmed booking
+    // TIME SLOT CONFLICT DETECTION via CloudDB
     // ============================================================
-    const existingBookings = readBookings();
+    const existingBookings = await readBookings();
     const conflict = existingBookings.find(
       (b: any) =>
         b.date === date &&
@@ -256,14 +243,9 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // Try to save booking to JSON file (will fail on Vercel read-only FS, which is fine)
-    try {
-      existingBookings.push(booking);
-      global._afsaanaBookingsCache = existingBookings; // Keep RAM cache in sync
-      fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(existingBookings, null, 2));
-    } catch (saveError) {
-      console.warn("Could not save to local filesystem (likely Vercel):", saveError);
-    }
+    // Save permanently to the cloud
+    existingBookings.push(booking);
+    await writeBookings(existingBookings);
 
     // Fire all notifications in parallel — errors don't fail the booking
     await Promise.allSettled([
@@ -280,7 +262,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const bookings = readBookings();
+    const bookings = await readBookings();
     return NextResponse.json({ bookings }, { status: 200 });
   } catch {
     return NextResponse.json({ bookings: [] }, { status: 200 });

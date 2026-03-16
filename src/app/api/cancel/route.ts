@@ -1,42 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 
-// Global in-memory cache for Vercel
-declare global {
-  var _afsaanaBookingsCache: any[];
-}
-if (!global._afsaanaBookingsCache) {
-  global._afsaanaBookingsCache = [];
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-const BOOKINGS_FILE = path.join(process.cwd(), "data", "bookings.json");
+const JSON_STORE_URL = "https://jsonblob.com/api/jsonBlob/019cf506-0ac6-7703-be54-af76c2b52926";
 const NTFY_TOPIC = process.env.NTFY_TOPIC || "afsaana-bookings-private";
 
-function readBookings() {
+// Read all bookings from decentralized cloud safely
+async function readBookings(): Promise<any[]> {
   try {
-    if (!fs.existsSync(BOOKINGS_FILE)) return global._afsaanaBookingsCache || [];
-    const data = JSON.parse(fs.readFileSync(BOOKINGS_FILE, "utf-8"));
-    if (Array.isArray(data) && data.length > 0) {
-      const merged = [...data];
-      global._afsaanaBookingsCache.forEach(cb => {
-        if (!merged.find(b => b.ref === cb.ref)) merged.push(cb);
-      });
-      global._afsaanaBookingsCache = merged;
-      return merged;
-    }
-    return global._afsaanaBookingsCache || [];
-  } catch {
-    return global._afsaanaBookingsCache || [];
+    const res = await fetch(JSON_STORE_URL, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("External DB fetch failed:", err);
+    return [];
   }
 }
 
-function writeBookings(bookings: any[]) {
-  global._afsaanaBookingsCache = bookings; // keep in sync
+// Write bookings to decentralized cloud
+async function writeBookings(bookings: any[]) {
   try {
-    fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
+    await fetch(JSON_STORE_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(bookings)
+    });
   } catch (err) {
-    console.warn("Could not save cancellation to local filesystem (likely Vercel):", err);
+    console.warn("External DB write failed:", err);
   }
 }
 
@@ -74,7 +72,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Booking reference is required." }, { status: 400 });
     }
 
-    const bookings = readBookings();
+    const bookings = await readBookings();
     const index = bookings.findIndex((b: any) => b.ref === ref);
 
     if (index === -1) {
@@ -89,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     // Mark as cancelled
     bookings[index] = { ...booking, status: "cancelled", cancelledAt: new Date().toISOString() };
-    writeBookings(bookings);
+    await writeBookings(bookings);
 
     // Send owner ntfy notification (non-blocking)
     sendCancellationNtfy(booking);

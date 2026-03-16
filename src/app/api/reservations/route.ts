@@ -1,44 +1,37 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { NextRequest, NextResponse } from "next/server";
 
-// Global in-memory cache for Vercel
-declare global {
-  var _afsaanaBookingsCache: any[];
-}
-if (!global._afsaanaBookingsCache) {
-  global._afsaanaBookingsCache = [];
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-const BOOKINGS_FILE = path.join(process.cwd(), 'data', 'bookings.json');
+const JSON_STORE_URL = "https://jsonblob.com/api/jsonBlob/019cf506-0ac6-7703-be54-af76c2b52926";
 
-function readBookings() {
+async function readBookings(): Promise<any[]> {
   try {
-    if (!fs.existsSync(BOOKINGS_FILE)) {
-      return global._afsaanaBookingsCache || [];
-    }
-    const data = JSON.parse(fs.readFileSync(BOOKINGS_FILE, 'utf-8'));
-    
-    // Merge local file data with in-memory cache to ensure nothing is lost during hot reloads or short Vercel sessions
-    if (Array.isArray(data) && data.length > 0) {
-      // Basic merge (this is a simple sync for demo/Vercel persistence)
-      const merged = [...data];
-      global._afsaanaBookingsCache.forEach(cb => {
-        if (!merged.find(b => b.ref === cb.ref)) merged.push(cb);
-      });
-      global._afsaanaBookingsCache = merged;
-      return merged;
-    }
-    
-    return global._afsaanaBookingsCache || [];
+    const res = await fetch(JSON_STORE_URL, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch (err) {
-    console.log("Could not read bookings file (likely Vercel environment):", err);
-    return global._afsaanaBookingsCache || [];
+    console.error("External DB fetch failed:", err);
+    return [];
   }
 }
 
-// GET — return all real bookings from bookings.json
-export async function GET() {
-  const bookings = readBookings();
-  return NextResponse.json(bookings);
+export async function GET(req: NextRequest) {
+  try {
+    const bookings = await readBookings();
+    
+    // Sort bookings by createdAt descending
+    bookings.sort((a: any, b: any) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    
+    return NextResponse.json({ bookings }, { status: 200 });
+  } catch (err) {
+    console.error("Error fetching reservations:", err);
+    return NextResponse.json({ error: "Failed to fetch reservations." }, { status: 500 });
+  }
 }
