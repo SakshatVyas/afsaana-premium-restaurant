@@ -43,8 +43,5 @@ next-env.d.ts
 # customer booking data — never commit to GitHub
 /data/bookings.json
 
-# Large binary assets — upload manually or use a CDN
-/public/videos/
-/public/images/
-/images/
-/videos/
+# Note: public/images and public/videos are intentionally tracked
+# so they are deployed to GitHub and served by Vercel.
