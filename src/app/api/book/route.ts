@@ -137,15 +137,48 @@ async function sendOwnerEmail(booking: any) {
   });
 }
 
+// Ensure "1 PM", "1:00 pm", "13:00" all become "1:00 PM"
+function normalizeTime(t: string): string {
+  if (!t) return "";
+  const match = t.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (!match) return t.trim(); // fallback if unparseable
+
+  let [, hourStr, minStr, ampmStr] = match;
+  let hour = parseInt(hourStr, 10);
+  let min = minStr || "00";
+  let ampm = ampmStr ? ampmStr.toUpperCase() : null;
+
+  if (!ampm) {
+    // Military time guess
+    if (hour >= 12) {
+      if (hour > 12) hour -= 12;
+      ampm = "PM";
+    } else {
+      if (hour === 0) hour = 12;
+      ampm = "AM";
+    }
+  } else {
+    // Adjust AM/PM wraps
+    if (hour === 0 && ampm === "AM") hour = 12;
+    if (hour === 0 && ampm === "PM") hour = 12;
+  }
+
+  return `${hour}:${min} ${ampm}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, phone, date, time, guests, specialRequest } = body;
+    let { name, phone, date, time, guests, specialRequest } = body;
 
     // Validate required fields
     if (!name || !phone || !date || !time || !guests) {
       return NextResponse.json({ error: "All fields are required." }, { status: 400 });
     }
+
+    // Normalize precisely to catch collisions
+    time = normalizeTime(time);
+    date = date.trim();
 
     // ============================================================
     // TIME SLOT CONFLICT DETECTION
