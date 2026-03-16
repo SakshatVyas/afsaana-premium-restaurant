@@ -29,7 +29,6 @@ type Card = {
 const welcomeOptions: Option[] = [
   { label: "Book a Table", action: "book_table", icon: <Calendar className="w-4 h-4" /> },
   { label: "View Menu", action: "view_menu", icon: <ShoppingBag className="w-4 h-4" /> },
-  { label: "Order Food", action: "order_food", icon: <Send className="w-4 h-4" /> },
   { label: "Location", action: "location", icon: <MapPin className="w-4 h-4" /> },
   { label: "Restaurant Timings", action: "timings", icon: <Clock className="w-4 h-4" /> },
   { label: "Talk to Support", action: "support", icon: <Phone className="w-4 h-4" /> },
@@ -165,61 +164,17 @@ export default function Chatbot() {
           { title: "Paneer Lababdar", desc: "Cottage cheese in rich gravy", price: "₹380" }
         ]);
         setTimeout(() => {
-          addBotMessage("Would you like to order something?", [
-            { label: "Yes, Order Food", action: "order_food" },
-            { label: "Back to Menu", action: "main_menu" }
+          addBotMessage("Would you like to explore more?", [
+            { label: "Main Menu", action: "main_menu" }
           ]);
         }, 1500);
         break;
 
-      case "order_item":
-        addUserMessage(`Add ${option.label}`);
-        addBotMessage(`Added ${option.label} to your Cart. What's next?`, [
-          { label: "Checkout", action: "checkout" },
-          { label: "Back to Menu", action: "main_menu" }
-        ]);
-        break;
-
       // -----------------------------
-      // 4. ORDER FOOD FLOW
-      // -----------------------------
-      case "order_food":
-        addBotMessage("Choose a category to browse:", [
-          { label: "🍗 Non Veg", action: "order_cat_nonveg" },
-          { label: "🥦 Veg", action: "order_cat_veg" },
-          { label: "🍛 Biryani", action: "order_cat_biryani" },
-          { label: "🥤 Drinks", action: "order_cat_drinks" }
-        ]);
-        break;
-      
-      case "order_cat_nonveg":
-      case "order_cat_veg":
-      case "order_cat_biryani":
-      case "order_cat_drinks":
-        addBotMessage("Great! What would you like from here?", [
-          { label: "Add Dish #1", action: "order_item" },
-          { label: "Add Dish #2", action: "order_item" }
-        ]);
-        break;
-
-      case "checkout":
-        addBotMessage("Your Order Total: ₹850\n\nPickup or Dine-in?", [
-          { label: "Pickup", action: "checkout_confirm" },
-          { label: "Dine-in", action: "checkout_confirm" }
-        ]);
-        break;
-      
-      case "checkout_confirm":
-        addBotMessage("✅ Order Placed! We will prepare it shortly.", [
-          { label: "Main Menu", action: "main_menu" }
-        ]);
-        break;
-
-      // -----------------------------
-      // 5. LOCATION, TIMINGS, SUPPORT
+      // 4. LOCATION, TIMINGS, SUPPORT
       // -----------------------------
       case "location":
-        addBotMessage("📍 Afsaana by Scooters\n\nRoad near DLM Valley Resort\nDLM City Bungal\nPunjab 145001", [
+        addBotMessage("📍 Afsaana by Scooters\n\nroad, near dlm valley resort, DLM City, Bungal,\nPunjab 145001\n8Q32+PR Bungal, Punjab", [
           { label: "Open in Google Maps", action: "open_maps" },
           { label: "Main Menu", action: "main_menu" }
         ]);
@@ -270,17 +225,51 @@ export default function Chatbot() {
       addBotMessage("Thank you, " + text + ". And your Phone Number? 📱");
     } 
     else if (currentFlow === "booking_step_5") {
-      setFormData({ ...formData, phone: text });
+      const finalPhone = text;
+      setFormData({ ...formData, phone: finalPhone });
       setCurrentFlow(null);
-      // Simulate API Call for booking
+      
+      // Try calling real API for booking
       addBotMessage("Processing your reservation...", [], [], 500);
       
-      setTimeout(() => {
-        addBotMessage(
-          `✅ Table booked successfully!\n\nName: ${formData.name}\nGuests: ${formData.guests}\nDate: ${formData.date}\nTime: ${formData.time}\n\nOur team will contact you shortly.`,
-          [{ label: "Main Menu", action: "main_menu" }]
-        );
-      }, 2000);
+      setTimeout(async () => {
+        try {
+          // Massage the data format to match the backend expectations (e.g. "Guests" string to pure number string if needed)
+          const guestsStr = String(formData.guests).replace(/\D/g, "") || "2";
+
+          const res = await fetch("/api/book", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: formData.name,
+              phone: finalPhone,
+              date: formData.date,
+              time: formData.time,
+              guests: guestsStr,
+              specialRequest: "Booked via Chatbot",
+            }),
+          });
+          
+          const data = await res.json();
+          
+          if (res.ok && data.success) {
+            addBotMessage(
+              `✅ Table booked successfully!\n\nName: ${formData.name}\nGuests: ${formData.guests}\nDate: ${formData.date}\nTime: ${formData.time}\n\nOur team will contact you shortly.`,
+              [{ label: "Main Menu", action: "main_menu" }]
+            );
+          } else if (res.status === 409) {
+            // Documenting Double-booking error explicitly directly in chat
+            addBotMessage(
+              `⚠️ We are so sorry, but that table is already booked for ${formData.time} on ${formData.date}.\n\nWould you like to try a different time?`,
+              [{ label: "Try Different Time", action: "book_table" }, { label: "Main Menu", action: "main_menu" }]
+            );
+          } else {
+            addBotMessage("An error occurred while booking. Please try again later or call us directly.", [{ label: "Main Menu", action: "main_menu" }]);
+          }
+        } catch (err) {
+          addBotMessage("Network error confirming your booking. Please call us directly.", [{ label: "Main Menu", action: "main_menu" }]);
+        }
+      }, 1500);
     }
     else {
       // Basic fallback

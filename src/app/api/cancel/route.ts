@@ -2,20 +2,42 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+// Global in-memory cache for Vercel
+declare global {
+  var _afsaanaBookingsCache: any[];
+}
+if (!global._afsaanaBookingsCache) {
+  global._afsaanaBookingsCache = [];
+}
+
 const BOOKINGS_FILE = path.join(process.cwd(), "data", "bookings.json");
 const NTFY_TOPIC = process.env.NTFY_TOPIC || "afsaana-bookings-private";
 
 function readBookings() {
   try {
-    if (!fs.existsSync(BOOKINGS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(BOOKINGS_FILE, "utf-8"));
+    if (!fs.existsSync(BOOKINGS_FILE)) return global._afsaanaBookingsCache || [];
+    const data = JSON.parse(fs.readFileSync(BOOKINGS_FILE, "utf-8"));
+    if (Array.isArray(data) && data.length > 0) {
+      const merged = [...data];
+      global._afsaanaBookingsCache.forEach(cb => {
+        if (!merged.find(b => b.ref === cb.ref)) merged.push(cb);
+      });
+      global._afsaanaBookingsCache = merged;
+      return merged;
+    }
+    return global._afsaanaBookingsCache || [];
   } catch {
-    return [];
+    return global._afsaanaBookingsCache || [];
   }
 }
 
 function writeBookings(bookings: any[]) {
-  fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
+  global._afsaanaBookingsCache = bookings; // keep in sync
+  try {
+    fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
+  } catch (err) {
+    console.warn("Could not save cancellation to local filesystem (likely Vercel):", err);
+  }
 }
 
 async function sendCancellationNtfy(booking: any) {

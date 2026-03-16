@@ -34,6 +34,10 @@ export default function AdminDashboard() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
 
+  // Batch action state
+  const [selectedRefs, setSelectedRefs] = useState<string[]>([]);
+  const [batchCancelling, setBatchCancelling] = useState(false);
+
   const fetchBookings = () => {
     setLoading(true);
     fetch("/api/reservations")
@@ -59,7 +63,6 @@ export default function AdminDashboard() {
     if (isAuthenticated) fetchBookings();
   }, [isAuthenticated]);
 
-  // ===== CANCEL BOOKING =====
   const handleCancel = async () => {
     if (!confirmBooking) return;
     setCancelling(true);
@@ -75,8 +78,9 @@ export default function AdminDashboard() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Refresh booking list
+        // Refresh booking list and clear selection if it was selected
         fetchBookings();
+        setSelectedRefs(prev => prev.filter(r => r !== confirmBooking.ref));
         setConfirmBooking(null);
 
         // Open WhatsApp with pre-filled cancellation message
@@ -93,6 +97,51 @@ export default function AdminDashboard() {
     }
   };
 
+  // ===== BATCH CANCEL =====
+  const handleBatchCancel = async () => {
+    if (selectedRefs.length === 0) return;
+    
+    // Quick confirmation
+    if (!window.confirm(`Are you sure you want to cancel these ${selectedRefs.length} bookings?`)) return;
+
+    setBatchCancelling(true);
+    let successCount = 0;
+
+    for (const ref of selectedRefs) {
+      try {
+        const res = await fetch("/api/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ref }),
+        });
+        if (res.ok) successCount++;
+      } catch (err) {
+        console.error("Batch cancel error for ref:", ref);
+      }
+    }
+
+    setBatchCancelling(false);
+    setSelectedRefs([]);
+    fetchBookings();
+    alert(`Successfully cancelled ${successCount} out of ${selectedRefs.length} selected bookings.`);
+  };
+
+  const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      // Select all currently visible ACTIVE bookings
+      const activeRefs = filteredBookings.filter(b => b.status !== 'cancelled').map(b => b.ref);
+      setSelectedRefs(activeRefs);
+    } else {
+      setSelectedRefs([]);
+    }
+  };
+
+  const toggleSelect = (ref: string) => {
+    setSelectedRefs(prev => 
+      prev.includes(ref) ? prev.filter(r => r !== ref) : [...prev, ref]
+    );
+  };
+  
   const today = new Date().toISOString().split("T")[0];
 
   const filteredBookings = bookings
@@ -185,16 +234,36 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          {(["all", "today", "upcoming", "cancelled"] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 text-xs uppercase tracking-widest font-semibold transition-all border ${
-              filter === f ? "bg-gold text-black border-gold" : "text-white/40 border-white/10 hover:border-white/30"
-            }`}>
-              {f === "all" ? "All" : f === "today" ? "Today" : f === "upcoming" ? "Upcoming" : "Cancelled"}
-            </button>
-          ))}
-          <span className="ml-auto text-white/30 text-xs self-center">{filteredBookings.length} record{filteredBookings.length !== 1 ? "s" : ""}</span>
+        {/* Filter Tabs & Batch Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-5 items-start sm:items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {(["all", "today", "upcoming", "cancelled"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 text-xs uppercase tracking-widest font-semibold transition-all border ${
+                filter === f ? "bg-gold text-black border-gold" : "text-white/40 border-white/10 hover:border-white/30"
+              }`}>
+                {f === "all" ? "All" : f === "today" ? "Today" : f === "upcoming" ? "Upcoming" : "Cancelled"}
+              </button>
+            ))}
+            <span className="ml-2 text-white/30 text-xs self-center">{filteredBookings.length} record{filteredBookings.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          <AnimatePresence>
+            {selectedRefs.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+                className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-4 py-2"
+              >
+                <span className="text-red-400 text-xs font-semibold">{selectedRefs.length} Selected</span>
+                <button
+                  onClick={handleBatchCancel}
+                  disabled={batchCancelling}
+                  className="bg-red-500 hover:bg-red-600 text-white text-xs uppercase tracking-widest px-3 py-1 font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {batchCancelling ? "Cancelling..." : "Cancel Selected"}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Bookings Table */}
@@ -212,6 +281,17 @@ export default function AdminDashboard() {
                 <table className="w-full text-left border-collapse min-w-[650px]">
                   <thead>
                     <tr className="bg-black/50 border-b border-white/10">
+                      <th className="p-3 md:p-4 w-12 text-center">
+                        <input 
+                          type="checkbox" 
+                          onChange={toggleSelectAll}
+                          checked={
+                            filteredBookings.filter(b => b.status !== 'cancelled').length > 0 && 
+                            selectedRefs.length === filteredBookings.filter(b => b.status !== 'cancelled').length
+                          }
+                          className="w-4 h-4 accent-gold cursor-pointer"
+                        />
+                      </th>
                       {["Ref", "Guest", "Contact", "Date & Time", "Guests", "Note", "Status", "Action"].map(h => (
                         <th key={h} className="p-3 md:p-4 text-xs tracking-widest uppercase text-white/40 font-medium">{h}</th>
                       ))}
@@ -219,7 +299,17 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {filteredBookings.map((booking) => (
-                      <tr key={booking.ref} className={`border-b border-white/5 transition-colors ${booking.status === "cancelled" ? "opacity-50" : "hover:bg-white/[0.02]"}`}>
+                      <tr key={booking.ref} className={`border-b border-white/5 transition-colors ${booking.status === "cancelled" ? "opacity-50" : "hover:bg-white/[0.02]"} ${selectedRefs.includes(booking.ref) ? "bg-gold/5" : ""}`}>
+                        <td className="p-3 md:p-4 text-center">
+                          {booking.status !== "cancelled" ? (
+                            <input 
+                              type="checkbox" 
+                              checked={selectedRefs.includes(booking.ref)}
+                              onChange={() => toggleSelect(booking.ref)}
+                              className="w-4 h-4 accent-gold cursor-pointer"
+                            />
+                          ) : <span className="text-white/20">—</span>}
+                        </td>
                         <td className="p-3 md:p-4 text-gold font-mono text-xs">{booking.ref}</td>
                         <td className="p-3 md:p-4 text-white font-serif text-sm">{booking.name}</td>
                         <td className="p-3 md:p-4 text-white/50 text-xs">{booking.phone}</td>
