@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, TrendingUp, Calendar as CalendarIcon, Clock, Lock, Eye, EyeOff, X, AlertTriangle } from "lucide-react";
+import { Users, TrendingUp, Calendar as CalendarIcon, Clock, Lock, Eye, EyeOff, X, AlertTriangle, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ADMIN_PASSWORD = "afsaana2026";
@@ -337,7 +337,26 @@ export default function AdminDashboard() {
                               Cancel
                             </button>
                           ) : (
-                            <span className="text-white/20 text-xs">—</span>
+                            <button
+                              onClick={() => {
+                                const rawPhone = booking.phone.replace(/\D/g, "");
+                                const phone = rawPhone.startsWith("91") ? rawPhone : `91${rawPhone}`;
+                                const waMessage = encodeURIComponent(
+                                  `Dear ${booking.name},\n\nWe regret to inform you that your table reservation at Afsaana by Scooters has been cancelled.\n\n` +
+                                  `📅 Date: ${booking.date}\n` +
+                                  `🕐 Time: ${booking.time}\n` +
+                                  `👥 Guests: ${booking.guests}\n` +
+                                  `🔖 Ref: ${booking.ref}\n\n` +
+                                  `We sincerely apologise for any inconvenience caused. Please feel free to call us at 07095000024 to rebook or discuss further.\n\n` +
+                                  `— Team Afsaana by Scooters`
+                                );
+                                window.open(`https://wa.me/${phone}?text=${waMessage}`, "_blank");
+                              }}
+                              className="text-xs flex items-center gap-1.5 uppercase tracking-widest text-green-400/60 hover:text-green-400 border border-green-500/20 hover:border-green-500/60 px-3 py-1 transition-all"
+                              title="Message Customer on WhatsApp"
+                            >
+                              <MessageCircle size={12} /> Notify
+                            </button>
                           )}
                         </td>
                       </tr>

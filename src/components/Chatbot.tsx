@@ -116,7 +116,7 @@ export default function Chatbot() {
         addBotMessage("Great! Please select a date 📅", [
           { label: "Today", action: "booking_date_today" },
           { label: "Tomorrow", action: "booking_date_tomorrow" },
-          { label: "Other Date...", action: "booking_date_other" }
+          { label: "Type Below ✍️", action: "type_hint" }
         ]);
         break;
       
@@ -128,7 +128,7 @@ export default function Chatbot() {
         addBotMessage("How many guests? 👥", [
           { label: "2 Guests", action: "booking_guests_2" },
           { label: "4 Guests", action: "booking_guests_4" },
-          { label: "6+ Guests", action: "booking_guests_6" }
+          { label: "Type Below ✍️", action: "type_hint" }
         ]);
         break;
 
@@ -140,7 +140,7 @@ export default function Chatbot() {
         addBotMessage("Preferred time? ⏰", [
           { label: "7:00 PM", action: "booking_time_7" },
           { label: "8:00 PM", action: "booking_time_8" },
-          { label: "9:00 PM", action: "booking_time_9" }
+          { label: "Type Below ✍️", action: "type_hint" }
         ]);
         break;
 
@@ -204,6 +204,10 @@ export default function Chatbot() {
         addBotMessage("Opening WhatsApp...", [{ label: "Main Menu", action: "main_menu" }]);
         break;
 
+      case "type_hint":
+        addBotMessage("You can just type your answer in the message box below! 👇");
+        break;
+
       default:
         addBotMessage("I am still learning to handle that request.", [{ label: "Main Menu", action: "main_menu" }]);
         break;
@@ -219,7 +223,30 @@ export default function Chatbot() {
     setInputText("");
 
     // Minimal NLP / Flow handling for manual text input
-    if (currentFlow === "booking_step_4") {
+    if (currentFlow === "booking_step_1") {
+      setFormData({ ...formData, date: text });
+      setCurrentFlow("booking_step_2");
+      addBotMessage("Got it! How many guests? 👥", [
+        { label: "2 Guests", action: "booking_guests_2" },
+        { label: "4 Guests", action: "booking_guests_4" },
+        { label: "Type Below ✍️", action: "type_hint" }
+      ]);
+    }
+    else if (currentFlow === "booking_step_2") {
+      setFormData({ ...formData, guests: text });
+      setCurrentFlow("booking_step_3");
+      addBotMessage("Preferred time? ⏰", [
+        { label: "7:00 PM", action: "booking_time_7" },
+        { label: "8:00 PM", action: "booking_time_8" },
+        { label: "Type Below ✍️", action: "type_hint" }
+      ]);
+    }
+    else if (currentFlow === "booking_step_3") {
+      setFormData({ ...formData, time: text });
+      setCurrentFlow("booking_step_4");
+      addBotMessage("Please type your Name below to continue.");
+    }
+    else if (currentFlow === "booking_step_4") {
       setFormData({ ...formData, name: text });
       setCurrentFlow("booking_step_5");
       addBotMessage("Thank you, " + text + ". And your Phone Number? 📱");
@@ -401,7 +428,6 @@ export default function Chatbot() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Type a message..."
-                disabled={currentFlow?.startsWith("booking_") && !currentFlow.includes("step_4") && !currentFlow.includes("step_5")}
                 className="flex-1 bg-zinc-900 border border-white/10 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold/50 transition-colors disabled:opacity-50"
               />
               <button 
