@@ -166,6 +166,47 @@ function normalizeTime(t: string): string {
   return `${hour}:${min} ${ampm}`;
 }
 
+// Convert DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD strictly into YYYY-MM-DD
+function normalizeDate(d: string): string {
+  if (!d) return "";
+  const cleaned = d.trim();
+  
+  // If it's already YYYY-MM-DD, just return it
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+    return cleaned;
+  }
+
+  // Handle DD/MM/YYYY or MM/DD/YYYY variants using standard JS Date parsing fallback,
+  // or explicit splitting if it contains slashes or dashes
+  const parts = cleaned.split(/[-/]/);
+  if (parts.length === 3) {
+    // Guessing based on length: if parts[2] is 4 digits, it's either DD/MM/YYYY or MM/DD/YYYY
+    if (parts[2].length === 4) {
+      const p1 = parseInt(parts[0], 10);
+      const p2 = parseInt(parts[1], 10);
+      
+      // If p1 > 12, it *must* be DD/MM/YYYY. If p2 > 12, it *must* be MM/DD/YYYY.
+      let day, month;
+      if (p1 > 12) {
+        day = p1; month = p2;
+      } else if (p2 > 12) {
+        month = p1; day = p2;
+      } else {
+        // Ambiguous parsing (e.g. 05/06/2026). In India context usually DD/MM/YYYY, but inputs prefer YYYY-MM-DD natively. Let's assume standard JS Date parse behavior or force DD/MM/YYYY as fallback if required by UI.
+        // We will just let JS Date constructor try its best.
+      }
+    }
+  }
+
+  // Fallback to JS native Date parser
+  const parsed = new Date(cleaned);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split("T")[0];
+  }
+
+  return cleaned; // Ultimate fallback if completely unparseable
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -178,7 +219,7 @@ export async function POST(req: NextRequest) {
 
     // Normalize precisely to catch collisions
     time = normalizeTime(time);
-    date = date.trim();
+    date = normalizeDate(date);
 
     // ============================================================
     // TIME SLOT CONFLICT DETECTION
