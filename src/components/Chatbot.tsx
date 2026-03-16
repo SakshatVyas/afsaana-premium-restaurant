@@ -11,6 +11,7 @@ type Message = {
   options?: Option[];
   cards?: Card[];
   isTyping?: boolean;
+  customUI?: "date_picker" | "guests_picker" | "time_picker";
 };
 
 type Option = {
@@ -44,6 +45,11 @@ export default function Chatbot() {
   const [currentFlow, setCurrentFlow] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   
+  // Custom UI Temporary State
+  const [tempDate, setTempDate] = useState("");
+  const [tempGuests, setTempGuests] = useState("2");
+  const [tempTime, setTempTime] = useState("19:00");
+  
   // Initialization
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -67,7 +73,7 @@ export default function Chatbot() {
     }
   }, [messages]);
 
-  const addBotMessage = (text: string, options?: Option[], cards?: Card[], delay: number = 600) => {
+  const addBotMessage = (text: string, options?: Option[], cards?: Card[], delay: number = 600, customUI?: "date_picker" | "guests_picker" | "time_picker") => {
     // Show typing indicator
     const typingId = Date.now().toString() + "_typing";
     setMessages(prev => [...prev, { id: typingId, sender: "bot", text: "", isTyping: true }]);
@@ -80,7 +86,8 @@ export default function Chatbot() {
           sender: "bot",
           text,
           options,
-          cards
+          cards,
+          customUI
         }];
       });
     }, delay);
@@ -113,44 +120,11 @@ export default function Chatbot() {
       case "book_table":
         setCurrentFlow("booking_step_1");
         setFormData({});
-        addBotMessage("Great! Please select a date 📅", [
-          { label: "Today", action: "booking_date_today" },
-          { label: "Tomorrow", action: "booking_date_tomorrow" },
-          { label: "Type Below ✍️", action: "type_hint" }
-        ]);
-        break;
-      
-      case "booking_date_today":
-      case "booking_date_tomorrow":
-      case "booking_date_other":
-        setFormData({ ...formData, date: option.label });
-        setCurrentFlow("booking_step_2");
-        addBotMessage("How many guests? 👥", [
-          { label: "2 Guests", action: "booking_guests_2" },
-          { label: "4 Guests", action: "booking_guests_4" },
-          { label: "Type Below ✍️", action: "type_hint" }
-        ]);
-        break;
-
-      case "booking_guests_2":
-      case "booking_guests_4":
-      case "booking_guests_6":
-        setFormData({ ...formData, guests: option.label });
-        setCurrentFlow("booking_step_3");
-        addBotMessage("Preferred time? ⏰", [
-          { label: "7:00 PM", action: "booking_time_7" },
-          { label: "8:00 PM", action: "booking_time_8" },
-          { label: "Type Below ✍️", action: "type_hint" }
-        ]);
-        break;
-
-      case "booking_time_7":
-      case "booking_time_8":
-      case "booking_time_9":
-        setFormData({ ...formData, time: option.label });
-        setCurrentFlow("booking_step_4");
-        // For the demo chatbot, we simulate asking for name & phone via text input
-        addBotMessage("Please type your Name below to continue.");
+        // default dates
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setTempDate(tomorrow.toISOString().split("T")[0]);
+        addBotMessage("Great! Please select your preferred date 📅", undefined, undefined, 600, "date_picker");
         break;
 
       // -----------------------------
@@ -214,32 +188,27 @@ export default function Chatbot() {
     }
   };
 
-  const handleSendText = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSendText = (e: React.FormEvent | null, directText?: string) => {
+    if (e) e.preventDefault();
     
-    const text = inputText.trim();
-    addUserMessage(text);
+    const textToProcess = directText || inputText.trim();
+    if (!textToProcess) return;
+    
+    addUserMessage(textToProcess);
     setInputText("");
+
+    const text = textToProcess;
 
     // Minimal NLP / Flow handling for manual text input
     if (currentFlow === "booking_step_1") {
       setFormData({ ...formData, date: text });
       setCurrentFlow("booking_step_2");
-      addBotMessage("Got it! How many guests? 👥", [
-        { label: "2 Guests", action: "booking_guests_2" },
-        { label: "4 Guests", action: "booking_guests_4" },
-        { label: "Type Below ✍️", action: "type_hint" }
-      ]);
+      addBotMessage("Got it! How many guests? 👥", undefined, undefined, 600, "guests_picker");
     }
     else if (currentFlow === "booking_step_2") {
       setFormData({ ...formData, guests: text });
       setCurrentFlow("booking_step_3");
-      addBotMessage("Preferred time? ⏰", [
-        { label: "7:00 PM", action: "booking_time_7" },
-        { label: "8:00 PM", action: "booking_time_8" },
-        { label: "Type Below ✍️", action: "type_hint" }
-      ]);
+      addBotMessage("Preferred time? ⏰", undefined, undefined, 600, "time_picker");
     }
     else if (currentFlow === "booking_step_3") {
       setFormData({ ...formData, time: text });
@@ -415,6 +384,75 @@ export default function Chatbot() {
                       </div>
                     )}
 
+                    {/* Custom Dropdown UIs */}
+                    {msg.customUI === "date_picker" && (
+                      <div className="flex flex-col gap-2 w-full mt-1 bg-zinc-900 border border-gold/30 p-3 rounded-xl">
+                        <input 
+                          type="date" 
+                          value={tempDate}
+                          onChange={(e) => setTempDate(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50"
+                        />
+                        <button 
+                          onClick={() => handleSendText(null, tempDate || new Date().toISOString().split("T")[0])}
+                          className="w-full bg-gold text-black rounded-lg py-2 text-xs font-semibold hover:bg-white transition-colors"
+                        >
+                          Confirm Date
+                        </button>
+                      </div>
+                    )}
+
+                    {msg.customUI === "guests_picker" && (
+                      <div className="flex flex-col gap-2 w-full mt-1 bg-zinc-900 border border-gold/30 p-3 rounded-xl">
+                        <select 
+                          value={tempGuests}
+                          onChange={(e) => setTempGuests(e.target.value)}
+                          className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50 appearance-none"
+                        >
+                          {[...Array(20)].map((_, i) => (
+                            <option key={i+1} value={i+1}>{i+1} Person{i > 0 && "s"}</option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => handleSendText(null, tempGuests + (tempGuests === "1" ? " Person" : " People"))}
+                          className="w-full bg-gold text-black rounded-lg py-2 text-xs font-semibold hover:bg-white transition-colors"
+                        >
+                          Confirm Guests
+                        </button>
+                      </div>
+                    )}
+
+                    {msg.customUI === "time_picker" && (
+                      <div className="flex flex-col gap-2 w-full mt-1 bg-zinc-900 border border-gold/30 p-3 rounded-xl">
+                        <select 
+                          value={tempTime}
+                          onChange={(e) => setTempTime(e.target.value)}
+                          className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50 appearance-none"
+                        >
+                          {(() => {
+                            const times = [];
+                            for(let h = 11; h <= 22; h++) {
+                              for(let m = 0; m <= 30; m += 30) {
+                                if (h === 22 && m > 30) break; // Last slot 10:30 PM
+                                const period = h >= 12 ? 'PM' : 'AM';
+                                const hour12 = h > 12 ? h - 12 : h;
+                                const timeString = `${hour12}:${m === 0 ? '00' : '30'} ${period}`;
+                                times.push(<option key={timeString} value={timeString}>{timeString}</option>);
+                              }
+                            }
+                            return times;
+                          })()}
+                        </select>
+                        <button 
+                          onClick={() => handleSendText(null, tempTime)}
+                          className="w-full bg-gold text-black rounded-lg py-2 text-xs font-semibold hover:bg-white transition-colors"
+                        >
+                          Confirm Time
+                        </button>
+                      </div>
+                    )}
+
                   </div>
                 </div>
               ))}
@@ -422,7 +460,7 @@ export default function Chatbot() {
             </div>
 
             {/* Input Area */}
-            <form onSubmit={handleSendText} className="p-3 bg-zinc-950 border-t border-gold/20 flex gap-2">
+            <form onSubmit={e => handleSendText(e)} className="p-3 bg-zinc-950 border-t border-gold/20 flex gap-2">
               <input
                 type="text"
                 value={inputText}
