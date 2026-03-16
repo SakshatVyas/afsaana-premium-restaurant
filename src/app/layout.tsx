@@ -10,6 +10,8 @@ import Preloader from "@/components/Preloader";
 import ScrollProgress from "@/components/ScrollProgress";
 import MobileCallButton from "@/components/MobileCallButton";
 
+import Chatbot from "@/components/Chatbot";
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -45,6 +47,7 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          <Chatbot />
         </SmoothScroll>
       </body>
     </html>

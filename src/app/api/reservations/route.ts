@@ -8,7 +8,8 @@ function readBookings() {
   try {
     if (!fs.existsSync(BOOKINGS_FILE)) return [];
     return JSON.parse(fs.readFileSync(BOOKINGS_FILE, 'utf-8'));
-  } catch {
+  } catch (err) {
+    console.log("Could not read bookings file (likely Vercel environment):", err);
     return [];
   }
 }

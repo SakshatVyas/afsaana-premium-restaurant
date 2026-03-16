@@ -159,9 +159,13 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // Save booking to JSON file
-    existingBookings.push(booking);
-    fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(existingBookings, null, 2));
+    // Try to save booking to JSON file (will fail on Vercel read-only FS, which is fine)
+    try {
+      existingBookings.push(booking);
+      fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(existingBookings, null, 2));
+    } catch (saveError) {
+      console.warn("Could not save to local filesystem (likely Vercel):", saveError);
+    }
 
     // Fire all notifications in parallel — errors don't fail the booking
     await Promise.allSettled([
