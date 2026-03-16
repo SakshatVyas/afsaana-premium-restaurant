@@ -48,7 +48,7 @@ export default function Chatbot() {
   // Custom UI Temporary State
   const [tempDate, setTempDate] = useState("");
   const [tempGuests, setTempGuests] = useState("2");
-  const [tempTime, setTempTime] = useState("19:00");
+  const [tempTime, setTempTime] = useState("11:00 AM");
   
   // Initialization
   useEffect(() => {
