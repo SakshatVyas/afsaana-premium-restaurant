@@ -40,10 +40,10 @@ export default function AdminDashboard() {
 
   const fetchBookings = () => {
     setLoading(true);
-    fetch("/api/reservations")
+    fetch(`/api/reservations?t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        setBookings(Array.isArray(data) ? data : []);
+        setBookings(Array.isArray(data.bookings) ? data.bookings : (Array.isArray(data) ? data : []));
         setLoading(false);
       })
       .catch(() => setLoading(false));

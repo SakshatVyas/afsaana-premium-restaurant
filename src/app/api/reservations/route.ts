@@ -7,9 +7,13 @@ const JSON_STORE_URL = "https://jsonblob.com/api/jsonBlob/019cf506-0ac6-7703-be5
 
 async function readBookings(): Promise<any[]> {
   try {
-    const res = await fetch(JSON_STORE_URL, {
+    const res = await fetch(`${JSON_STORE_URL}?t=${Date.now()}`, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: { 
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
       cache: 'no-store'
     });
     const data = await res.json();
