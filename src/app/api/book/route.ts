@@ -9,11 +9,15 @@ const BOOKINGS_FILE = path.join(DATA_DIR, "bookings.json");
 
 // Ensure the data directory and bookings file exist
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(BOOKINGS_FILE)) {
-    fs.writeFileSync(BOOKINGS_FILE, JSON.stringify([], null, 2));
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(BOOKINGS_FILE)) {
+      fs.writeFileSync(BOOKINGS_FILE, JSON.stringify([], null, 2));
+    }
+  } catch (err) {
+    console.warn("Could not ensure data directory (likely Vercel environment):", err);
   }
 }
 
