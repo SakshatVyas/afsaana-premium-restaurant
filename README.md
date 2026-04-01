@@ -73,7 +73,7 @@ Place your files in:
 
 Visit `/admin` or **tap the copyright text 5 times quickly** in the footer.
 
-Default password: `afsaana2026` *(change in `/src/app/admin/page.tsx` line 7)*
+Admin password removed for security (available on request)*
 
 ---
 
