@@ -1,4 +1,7 @@
 # 🍽️ Afsaana by Scooters — Luxury Restaurant Website
+🚀 Live Demo: https://afsaana-premium-restaurant.vercel.app/
+
+A hyper-premium, full-stack restaurant reservation platform with real-time booking management, AI chatbot integration, and admin dashboard.
 
 A hyper-premium, cinematic restaurant website built with **Next.js 14**, **Framer Motion**, and **TypeScript**.
 
